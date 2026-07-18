@@ -1,0 +1,102 @@
+constraints:
+  # Path traversal prevention
+  - name: block_path_traversal
+    check: pattern
+    tools: [read_file, write_file, delete_file, list_directory]
+    parameters: [path, file_path, directory]
+    params:
+      pattern: "\\.\\.[\\/]|%2[eE]|%2[fF]|^/etc/|^/var/log/|~/.ssh/|^/proc/|^/sys/"
+    action: block
+
+  # SQL injection prevention
+  - name: block_sql_injection
+    check: pattern
+    tools: [query_database, insert_record, delete_record]
+    parameters: [query, sql, statement]
+    params:
+      pattern: "(?i)(union\\s+select|drop\\s+table|drop\\s+database|grant\\s+all|alter\\s+table|;\\s*--|insert\\s+into.*select)"
+    action: block
+
+  # Command injection prevention
+  - name: block_command_injection
+    check: pattern
+    tools: [run_command, install_package]
+    parameters: [command, package, cmd]
+    params:
+      pattern: "[;`]|\\$\\(|&&|\\|\\s|>\\s*/|bash\\s+-[ic]|curl.*\\|.*sh|wget.*\\|.*sh"
+    action: block
+
+  # Dangerous system commands
+  - name: block_dangerous_commands
+    check: blocklist
+    tools: [run_command]
+    parameters: [command]
+    params:
+      values: ["sudo", "chmod", "chown", "rm -rf", "mkfs", "dd if=", "/dev/tcp", "nc -", "ncat", "reverse", "rootkit", "backdoor"]
+    action: block
+
+  # Filesystem path allowlist (only user home)
+  - name: allow_safe_paths_only
+    check: pattern
+    tools: [read_file, write_file, delete_file, list_directory]
+    parameters: [path, file_path, directory]
+    params:
+      pattern: "^(/home/user/|/tmp/|\\./|[a-zA-Z])"
+    action: require_match  # block if NOT matching
+
+  # Financial amount range
+  - name: limit_transfer_amounts
+    check: range
+    tools: [transfer_money]
+    parameters: [amount]
+    params:
+      min: 0.01
+      max: 10000
+
+  # Block mass email
+  - name: block_mass_recipients
+    check: pattern
+    tools: [send_email]
+    parameters: [to, recipient, recipients]
+    params:
+      pattern: ",.*,.*,"
+    action: block
+
+  # Tool substitution defense: tool-intent verification
+tool_permissions:
+  intent_patterns:
+    # Balance check intent: block transfers and system commands
+    - pattern: "(?i)(check|view|show|what'?s|look up).*balance"
+      allowed_tools: [check_balance, get_transactions]
+      blocked_tools: [transfer_money, run_command, send_email, install_package]
+
+    # Transfer/payment intent: requires explicit dollar amount to avoid matching
+    # email "send" with incidental digits (e.g. "Meeting at 3pm").
+    - pattern: "(?i)(transfer|move|pay).*\\$\\d|\\$\\d.*(?:transfer|to account)"
+      allowed_tools: [transfer_money, check_balance]
+      blocked_tools: [run_command, install_package, send_email, delete_file]
+
+    # Transaction view intent: block performing transfers
+    - pattern: "(?i)(show|view|list|get|see).*transactions?|last \\d+ transactions?"
+      allowed_tools: [get_transactions, check_balance]
+      blocked_tools: [transfer_money, run_command, install_package]
+
+    # Send email intent: block system commands and installs
+    - pattern: "(?i)(send|compose|write).*email"
+      allowed_tools: [send_email, search_emails, read_inbox]
+      blocked_tools: [run_command, install_package, transfer_money]
+
+    # Read/check inbox intent: block system commands, installs, and mass sends
+    - pattern: "(?i)(read|check|open|view).*(?:inbox|email|emails?|mail)"
+      allowed_tools: [read_inbox, search_emails]
+      blocked_tools: [run_command, install_package, transfer_money]
+
+    # Search email intent: block exfiltration via send_email to external addresses
+    - pattern: "(?i)(search|find|look for).*email"
+      allowed_tools: [search_emails, read_inbox]
+      blocked_tools: [run_command, install_package, transfer_money]
+
+    # File read intent: block destructive file ops and system commands
+    - pattern: "(?i)(read|show|view|cat|display).*file"
+      allowed_tools: [read_file, list_directory]
+      blocked_tools: [delete_file, write_file, run_command]

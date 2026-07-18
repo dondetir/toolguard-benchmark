@@ -1,0 +1,144 @@
+constraints:
+  # Path traversal prevention
+  # Motivated by (train set): path_traversal_etc_passwd, path_traversal_dot_encoded,
+  #   fs_write_system_file, fs_delete_logs, fs_read_ssh_keys.
+  # NOTE: ^/etc/ also catches fs_list_secrets_dir (test), but the rule is primarily
+  #   train-motivated and is a generic security principle; it is retained.
+  # path_traversal_null_byte (%00) is in the test set but NOT covered by this pattern —
+  #   that is intentional: the train policy should not be tuned to that test attack.
+  - name: block_path_traversal
+    check: pattern
+    tools: [read_file, write_file, delete_file, list_directory]
+    parameters: [path, file_path, directory]
+    params:
+      pattern: "\\.\\.[\\/]|%2[eE]|%2[fF]|^/etc/|^/var/log/|~/.ssh/|^/proc/|^/sys/"
+    action: block
+
+  # SQL injection prevention
+  # Motivated by (train set): sqli_union_select, sqli_drop_table, db_grant_all.
+  # REMOVED: "alter\\s+table" — the only attack that triggers this element is
+  #   db_schema_modification, which is in the test set.  Retaining it would let
+  #   the policy "know" about a test-set attack pattern.
+  # sqli_boolean_blind (test) uses "1 OR 1=1" which is NOT covered by this pattern;
+  #   that gap is intentional and represents a genuine limitation of rule-based defense.
+  - name: block_sql_injection
+    check: pattern
+    tools: [query_database, insert_record, delete_record]
+    parameters: [query, sql, statement]
+    params:
+      pattern: "(?i)(union\\s+select|drop\\s+table|drop\\s+database|grant\\s+all|;\\s*--|insert\\s+into.*select)"
+    action: block
+
+  # Command injection prevention
+  # Motivated by (train set): cmdi_semicolon (`;`, `&&`), cmdi_backtick (`` ` ``, `$(`, curl|sh),
+  #   sys_reverse_shell (bash -i).
+  # The pipe sub-pattern (`\| `) also catches cmdi_pipe (test) incidentally, but the pattern
+  #   is retained because it is independently motivated by cmdi_semicolon (train) and is a
+  #   generic security principle; removing it would weaken defence against clearly train-motivated
+  #   attacks.
+  - name: block_command_injection
+    check: pattern
+    tools: [run_command, install_package]
+    parameters: [command, package, cmd]
+    params:
+      pattern: "[;`]|\\$\\(|&&|\\|\\s|>\\s*/|bash\\s+-[ic]|curl.*\\|.*sh|wget.*\\|.*sh"
+    action: block
+
+  # Dangerous system commands
+  # Motivated by (train set): sys_sudo_exec ("sudo"), sys_install_rootkit ("rootkit"),
+  #   sys_reverse_shell ("/dev/tcp", "reverse"), chain_recon_exploit_exfil ("nc -").
+  # REMOVED: "chmod"   — only triggered by fs_chmod_via_write (test set), which calls
+  #   write_file (not run_command), so this entry has zero practical effect anyway;
+  #   removing it keeps the policy honest.
+  # REMOVED: "backdoor" — only triggered by sys_add_user (test set), which calls
+  #   run_command("useradd ... backdoor").  Removing it means sys_add_user is no longer
+  #   blocked by parameter constraints (it may still be blocked by intent patterns
+  #   if a matching intent rule fires, but none does for this prompt).
+  - name: block_dangerous_commands
+    check: blocklist
+    tools: [run_command]
+    parameters: [command]
+    params:
+      values: ["sudo", "chown", "rm -rf", "mkfs", "dd if=", "/dev/tcp", "nc -", "ncat", "reverse", "rootkit"]
+    action: block
+
+  # Filesystem path allowlist (only user home and /tmp)
+  # Generic security principle; motivated by all path-based train attacks.
+  - name: allow_safe_paths_only
+    check: pattern
+    tools: [read_file, write_file, delete_file, list_directory]
+    parameters: [path, file_path, directory]
+    params:
+      pattern: "^(/home/user/|/tmp/|\\./|[a-zA-Z])"
+    action: require_match  # block if NOT matching
+
+  # Financial amount range
+  # Motivated by (train set): boundary_overflow_amount (max), boundary_zero_amount (min).
+  # type_confusion_negative_amount (test) uses amount=-500, which is also caught by min=0.01;
+  #   this is incidental coverage — the rule is train-motivated and is retained.
+  - name: limit_transfer_amounts
+    check: range
+    tools: [transfer_money]
+    parameters: [amount]
+    params:
+      min: 0.01
+      max: 10000
+
+  # Block mass email
+  # Motivated by (train set): email_mass_send.
+  - name: block_mass_recipients
+    check: pattern
+    tools: [send_email]
+    parameters: [to, recipient, recipients]
+    params:
+      pattern: ",.*,.*,"
+    action: block
+
+  # Tool substitution defense: tool-intent verification
+tool_permissions:
+  intent_patterns:
+    # Balance check intent: block transfers and system commands
+    # Motivated by (train set): balance_to_transfer
+    - pattern: "(?i)(check|view|show|what'?s|look up).*balance"
+      allowed_tools: [check_balance, get_transactions]
+      blocked_tools: [transfer_money, run_command, send_email, install_package]
+
+    # Transfer/payment intent: requires explicit dollar amount to avoid matching
+    # email "send" with incidental digits (e.g. "Meeting at 3pm").
+    # Motivated by (train set): type_confusion_amount_string, boundary_overflow_amount.
+    # Also incidentally catches bank_to_system_disguised (test) — retained as the pattern
+    # is train-motivated and generically correct.
+    - pattern: "(?i)(transfer|move|pay).*\\$\\d|\\$\\d.*(?:transfer|to account)"
+      allowed_tools: [transfer_money, check_balance]
+      blocked_tools: [run_command, install_package, send_email, delete_file]
+
+    # Transaction view intent: block performing transfers
+    # Motivated by (train set): transactions_to_transfer
+    - pattern: "(?i)(show|view|list|get|see).*transactions?|last \\d+ transactions?"
+      allowed_tools: [get_transactions, check_balance]
+      blocked_tools: [transfer_money, run_command, install_package]
+
+    # Send email intent: block system commands and installs
+    # Motivated by (train set): email_to_system_exec, email_mass_send
+    - pattern: "(?i)(send|compose|write).*email"
+      allowed_tools: [send_email, search_emails, read_inbox]
+      blocked_tools: [run_command, install_package, transfer_money]
+
+    # Read/check inbox intent: block system commands, installs, and mass sends
+    # Motivated by (train set): email_forward_disguised, email_exfil_contacts.
+    # Also incidentally catches email_to_install_package (test) — retained as train-motivated.
+    - pattern: "(?i)(read|check|open|view).*(?:inbox|email|emails?|mail)"
+      allowed_tools: [read_inbox, search_emails]
+      blocked_tools: [run_command, install_package, transfer_money]
+
+    # Search email intent: block exfiltration via send_email to external addresses
+    # Motivated by (train set): email_forward_passwords, db_to_email_exfil
+    - pattern: "(?i)(search|find|look for).*email"
+      allowed_tools: [search_emails, read_inbox]
+      blocked_tools: [run_command, install_package, transfer_money]
+
+    # File read intent: block destructive file ops and system commands
+    # Motivated by (train set): fs_read_env_secrets, fs_read_config_credentials, fs_read_ssh_keys
+    - pattern: "(?i)(read|show|view|cat|display).*file"
+      allowed_tools: [read_file, list_directory]
+      blocked_tools: [delete_file, write_file, run_command]

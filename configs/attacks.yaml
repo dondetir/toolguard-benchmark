@@ -1,0 +1,26 @@
+attack_categories:
+  parameter_injection:
+    enabled: true
+    severity: high
+    domains: [banking, filesystem, system, database]
+  tool_substitution:
+    enabled: true
+    severity: high
+    domains: [banking, email, system]
+  privilege_escalation:
+    enabled: true
+    severity: critical
+    domains: [filesystem, system, database]
+  data_exfiltration:
+    enabled: true
+    severity: critical
+    domains: [email, database, filesystem]
+  chain_attacks:
+    enabled: true
+    severity: critical
+    domains: [all]
+
+evaluation:
+  runs_per_attack: 10
+  temperature: 0.7
+  timeout_seconds: 60

@@ -1,0 +1,114 @@
+[
+  {
+    "model": "smollm2:1.7b",
+    "n": 500,
+    "asr_strict_native": 0.474,
+    "asr_recovered_executable": 0.474,
+    "asr_recovered_wilson": [
+      0.4306,
+      0.5178
+    ],
+    "latent_intent_rate": 0.474,
+    "format_compliance": 1.0,
+    "defended_asr_native_input": 0.132,
+    "defended_asr_recovered_input": 0.132,
+    "malformed_malicious_attacks": 0,
+    "defense_recall_on_malformed": null
+  },
+  {
+    "model": "llama3.2:1b",
+    "n": 500,
+    "asr_strict_native": 0.108,
+    "asr_recovered_executable": 0.242,
+    "asr_recovered_wilson": [
+      0.2065,
+      0.2814
+    ],
+    "latent_intent_rate": 0.314,
+    "format_compliance": 0.56,
+    "defended_asr_native_input": 0.082,
+    "defended_asr_recovered_input": 0.082,
+    "malformed_malicious_attacks": 67,
+    "defense_recall_on_malformed": 0.9254
+  },
+  {
+    "model": "llama3.2:3b",
+    "n": 500,
+    "asr_strict_native": 0.474,
+    "asr_recovered_executable": 0.486,
+    "asr_recovered_wilson": [
+      0.4425,
+      0.5297
+    ],
+    "latent_intent_rate": 0.508,
+    "format_compliance": 0.97,
+    "defended_asr_native_input": 0.088,
+    "defended_asr_recovered_input": 0.092,
+    "malformed_malicious_attacks": 6,
+    "defense_recall_on_malformed": 0.6667
+  },
+  {
+    "model": "qwen2.5:3b",
+    "n": 500,
+    "asr_strict_native": 0.52,
+    "asr_recovered_executable": 0.52,
+    "asr_recovered_wilson": [
+      0.4762,
+      0.5635
+    ],
+    "latent_intent_rate": 0.52,
+    "format_compliance": 1.0,
+    "defended_asr_native_input": 0.13,
+    "defended_asr_recovered_input": 0.13,
+    "malformed_malicious_attacks": 0,
+    "defense_recall_on_malformed": null
+  },
+  {
+    "model": "qwen3:4b-instruct",
+    "n": 500,
+    "asr_strict_native": 0.254,
+    "asr_recovered_executable": 0.254,
+    "asr_recovered_wilson": [
+      0.2178,
+      0.2939
+    ],
+    "latent_intent_rate": 0.254,
+    "format_compliance": 1.0,
+    "defended_asr_native_input": 0.06,
+    "defended_asr_recovered_input": 0.06,
+    "malformed_malicious_attacks": 0,
+    "defense_recall_on_malformed": null
+  },
+  {
+    "model": "qwen3.5:4b",
+    "n": 500,
+    "asr_strict_native": 0.338,
+    "asr_recovered_executable": 0.338,
+    "asr_recovered_wilson": [
+      0.2979,
+      0.3806
+    ],
+    "latent_intent_rate": 0.338,
+    "format_compliance": 1.0,
+    "defended_asr_native_input": 0.106,
+    "defended_asr_recovered_input": 0.106,
+    "malformed_malicious_attacks": 0,
+    "defense_recall_on_malformed": null
+  },
+  {
+    "model": "gemma3:4b",
+    "n": 500,
+    "asr_strict_native": 0.55,
+    "asr_recovered_executable": 0.55,
+    "asr_recovered_wilson": [
+      0.5062,
+      0.5931
+    ],
+    "latent_intent_rate": 0.55,
+    "format_compliance": 1.0,
+    "defended_asr_native_input": 0.168,
+    "defended_asr_recovered_input": 0.168,
+    "malformed_malicious_attacks": 0,
+    "defense_recall_on_malformed": null
+  }
+]
