@@ -1,7 +1,8 @@
 # ToolGuard: Red-Teaming Small Language Model Tool Calling
 
-Anonymized artifact for a TMLR submission. Benchmark and defense code for studying adversarial robustness
-of sub-4B language models when they call tools.
+Code and benchmark for the TMLR paper *ToolGuard: Red-Teaming Small Language Model Tool Calling on
+Consumer Hardware* (Ravitez Dondeti, 2026). Benchmark and defense code for studying adversarial
+robustness of sub-4B language models when they call tools.
 
 Contents: an adversarial benchmark (5 attack categories over simulated tool schemas), a red-team harness
 that runs it against local models via [Ollama](https://ollama.com), and `ToolGuard`, a WAF-inspired
